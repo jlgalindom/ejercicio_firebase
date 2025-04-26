@@ -6,8 +6,8 @@
     <title>Registro de Citas Odontológicas</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #f0f8ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e0f7fa;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -15,31 +15,38 @@
             margin: 0;
         }
         form {
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            width: 350px;
         }
         h2 {
             text-align: center;
+            color: #007bff;
             margin-bottom: 20px;
         }
         input, textarea, button {
             width: 100%;
             padding: 10px;
-            margin: 5px 0 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            margin: 8px 0 15px;
+            border: 1px solid #007bff;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+            border-color: #0056b3;
+            outline: none;
         }
         button {
-            background-color: #28a745;
+            background-color: #007bff;
             color: white;
+            font-weight: bold;
             border: none;
             cursor: pointer;
         }
         button:hover {
-            background-color: #218838;
+            background-color: #0056b3;
         }
     </style>
 </head>
@@ -49,19 +56,17 @@
         <h2>Agendar Cita</h2>
         <input type="text" id="nombre" placeholder="Nombre completo" required>
         <input type="email" id="email" placeholder="Correo electrónico" required>
-        <input type="tel" id="telefono" placeholder="Teléfono" required>
+        <input type="tel" id="telefono" placeholder="Teléfono" pattern="[0-9]{10}" title="Debe contener 10 dígitos" required>
         <input type="date" id="fecha" required>
         <textarea id="motivo" placeholder="Motivo de la cita" rows="3" required></textarea>
         <button type="submit">Registrar Cita</button>
     </form>
 
     <script type="module">
-        // Importar funciones necesarias de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
-        // Configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyCoyNHpYq3NEB0x3os0ql5d8HqX6oYBLmw",
             authDomain: "e1459-c8cc8.firebaseapp.com",
@@ -72,31 +77,61 @@
             measurementId: "G-1WQMC2HDG1"
         };
 
-        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const analytics = getAnalytics(app);
 
-        // Manejar el envío del formulario
         document.getElementById('citaForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const nombre = document.getElementById('nombre').value;
-            const email = document.getElementById('email').value;
-            const telefono = document.getElementById('telefono').value;
+            const nombre = document.getElementById('nombre').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const telefono = document.getElementById('telefono').value.trim();
             const fecha = document.getElementById('fecha').value;
-            const motivo = document.getElementById('motivo').value;
+            const motivo = document.getElementById('motivo').value.trim();
 
+            // Validaciones adicionales
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Por favor ingresa un correo electrónico válido.');
+                return;
+            }
+
+            const telefonoRegex = /^[0-9]{10}$/;
+            if (!telefonoRegex.test(telefono)) {
+                alert('El número de teléfono debe contener exactamente 10 dígitos.');
+                return;
+            }
+
+            const hoy = new Date();
+            const fechaSeleccionada = new Date(fecha);
+            hoy.setHours(0,0,0,0);
+            if (fechaSeleccionada < hoy) {
+                alert('La fecha de la cita debe ser hoy o en el futuro.');
+                return;
+            }
+
+            // Verificar disponibilidad
             try {
-                await addDoc(collection(db, "citas"), {
+                const citasRef = collection(db, "citas");
+                const q = query(citasRef, where("fecha", "==", fecha));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    alert('Ya existe una cita registrada en esta fecha. Por favor selecciona otra fecha.');
+                    return;
+                }
+
+                await addDoc(citasRef, {
                     nombre,
                     email,
                     telefono,
                     fecha,
                     motivo
                 });
+
                 alert('¡Cita registrada exitosamente!');
                 document.getElementById('citaForm').reset();
+
             } catch (error) {
                 console.error("Error registrando la cita: ", error);
                 alert('Ocurrió un error al registrar la cita.');
